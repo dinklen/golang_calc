@@ -1,4 +1,4 @@
-package main
+package golang_calc
 
 import (
     "strconv"
@@ -7,7 +7,7 @@ import (
     "fmt"
 )
 
-func Find(item rune, arr []rune) (int, bool) {
+func find(item rune, arr []rune) (int, bool) {
     var index int = 0
     for _, item2 := range arr {
 	if item == item2 {
@@ -18,7 +18,7 @@ func Find(item rune, arr []rune) (int, bool) {
     return -1, false
 }
 
-func OperationCalc(expression []string, operations []rune) (string, error) {
+func operationCalc(expression []string, operations []rune) (string, error) {
 	var (
 		outputString string = ""
 		result float64 = 0
@@ -30,7 +30,7 @@ func OperationCalc(expression []string, operations []rune) (string, error) {
 	)
 	
 	for index := 1; index < len(expression)-1; index += 2 {
-		if _, found := Find([]rune(expression[index])[0], operations); found {
+		if _, found := find([]rune(expression[index])[0], operations); found {
 			number2, err2 = strconv.ParseFloat(expression[index+1], 64)
 
 			if expression[index-1] == "" {
@@ -74,7 +74,7 @@ func OperationCalc(expression []string, operations []rune) (string, error) {
 	return outputString, nil
 }
 
-func TempCalculate(expression string) (float64, error) {
+func tempCalculate(expression string) (float64, error) {
     var (
 	    flag bool = false
     	    errE error = nil
@@ -92,11 +92,11 @@ func TempCalculate(expression string) (float64, error) {
     for _, r := range symbols {
 	if r == ' ' {
 	    continue
-    	} else if _, found := Find(r, operators); found {
+    	} else if _, found := find(r, operators); found {
             tempStrings = append(tempStrings, tempString)
             tempStrings = append(tempStrings, string(r))
             tempString = ""
-    	} else if _, found := Find(r, numbers); found {
+    	} else if _, found := find(r, numbers); found {
             tempString += string(r)
         } else {
             return 0, errors.New("Invalid input")
@@ -106,13 +106,13 @@ func TempCalculate(expression string) (float64, error) {
     tempStrings = append(tempStrings, tempString)
     
     if flag {
-    	expression, errE = OperationCalc(tempStrings, []rune{'+', '-'})
+    	expression, errE = operationCalc(tempStrings, []rune{'+', '-'})
 
 	if errE != nil {
 		return 0, errE
 	}
     } else {
-	expression, errE = OperationCalc(tempStrings, []rune{'*', '/'})
+	expression, errE = operationCalc(tempStrings, []rune{'*', '/'})
 
 	if errE != nil {
 		return 0, errE
@@ -140,7 +140,7 @@ func Calc(expression string) (float64, error) {
 	tempExpression = strings.Replace(tempExpression, " ", "", -1)
 	
 	st:
-	if indexL, left := Find('(', []rune(tempExpression)); left {
+	if indexL, left := find('(', []rune(tempExpression)); left {
 		counter := -1
 
 		for indexR := indexL; indexR < len([]rune(tempExpression)); indexR++ {
@@ -160,7 +160,7 @@ func Calc(expression string) (float64, error) {
 			}
 		}
 	} else {
-		result, err = TempCalculate(tempExpression)
+		result, err = tempCalculate(tempExpression)
 		if err != nil {
 			return 0, err
 		}

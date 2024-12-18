@@ -1,7 +1,9 @@
 package main
 
-import //server
+import "github.com/dinklen08/golang_calc/internal/application"
 
 func main() {
-	//run
+	app := application.New()
+
+	app.Run()
 }
