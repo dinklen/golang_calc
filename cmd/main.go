@@ -1,9 +1,16 @@
 package main
 
-import "github.com/dinklen08/golang_calc/internal/application"
+import (
+	"log"
+
+	"github.com/dinklen08/golang_calc/internal/application"
+)
 
 func main() {
 	app := application.New()
 
-	app.Run()
+	err := app.Run()
+	if err != nil {
+		log.Printf("[FATAL] %v", err)
+	}
 }

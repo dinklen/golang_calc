@@ -3,11 +3,9 @@ package golang_calc
 import (
 	"net/http"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"fmt"
-
-	"github.com/dinklen08/golang_calc/pkg/golang_calc"
+	"errors"
 )
 
 type successOutputData struct {
@@ -26,13 +24,13 @@ func errorOutput(w http.ResponseWriter, errText string, errCode int, errEvent er
 	log.Printf("[ERROR] %v", errEvent)
 	
 	err := json.NewEncoder(w).Encode(
-		FailureOutputData {
+		failureOutputData {
 			Error: errText,
 		},
 	)
 
 	if err != nil {
-		log.Printf("[FATAL] %v")
+		log.Printf("[ERROR] %v")
 		w.WriteHeader(501)
 		return
 	}
@@ -44,6 +42,8 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		decryptData inputData
 		result float64
+
+		err error
 	)
 
 	if r.Method != http.MethodPost {
@@ -52,29 +52,28 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer r.Body.Close()
-
-	encryptData, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		errorOutput(w, "Internal server error", 500, err)
-		return
-	}
-
-	if err = json.NewDecoder(encryptData).Decode(decryptData); err != nil {
+	
+	if err = json.NewDecoder(r.Body).Decode(&decryptData); err != nil {
 		errorOutput(w, "Internal server error", 500, err)
 		return
 	}
 		
-	result, err = calc.Calc(decryptData.Expression)
+	result, err = Calc(decryptData.Expression)
 	if err != nil {
 		errorOutput(w, "Expression is not valid", 422, err)
 		return
 	}
 
-	json.NewEncoder(w).Encode(
+	err = json.NewEncoder(w).Encode(
 		successOutputData {
-			Result: fmt.Sprintf("%.f", result),
+			Result: fmt.Sprintf("%.9f", result),
 		},
 	)
+
+	if err != nil {
+		errorOutput(w, "Internal server error", 500, err)
+		return
+	}
 
 	w.WriteHeader(200)
 	log.Printf("[INFO] success")
