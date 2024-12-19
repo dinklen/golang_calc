@@ -64,9 +64,11 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
+
 	err = json.NewEncoder(w).Encode(
 		successOutputData {
-			Result: fmt.Sprintf("%.9f", result),
+			Result: fmt.Sprint(result),
 		},
 	)
 
