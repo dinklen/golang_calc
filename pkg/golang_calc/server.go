@@ -6,6 +6,7 @@ import (
 	"log"
 	"fmt"
 	"errors"
+	"io"
 )
 
 type successOutputData struct {
@@ -22,7 +23,8 @@ type inputData struct {
 
 func errorOutput(w http.ResponseWriter, errText string, errCode int, errEvent error) {
 	log.Printf("[ERROR] %v", errEvent)
-	
+
+	w.WriteHeader(errCode)
 	err := json.NewEncoder(w).Encode(
 		failureOutputData {
 			Error: errText,
@@ -34,8 +36,6 @@ func errorOutput(w http.ResponseWriter, errText string, errCode int, errEvent er
 		w.WriteHeader(501)
 		return
 	}
-
-	w.WriteHeader(errCode)
 }
 
 func CalcHandler(w http.ResponseWriter, r *http.Request) {
@@ -46,25 +46,27 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 		err error
 	)
 
-	if r.Method != http.MethodPost {
+	if r.Method != "POST" {
 		errorOutput(w, "Access denied", 405, errors.New("try to use method GET"))
 		return
 	}
 
 	defer r.Body.Close()
-	
-	if err = json.NewDecoder(r.Body).Decode(&decryptData); err != nil {
+
+	data, err := io.ReadAll(r.Body)
+	log.Printf("[info] %s;%v", string(data), err)
+	if err != nil {
 		errorOutput(w, "Internal server error", 500, err)
 		return
 	}
-		
+	
+	json.Unmarshal(data, &decryptData)
+
 	result, err = Calc(decryptData.Expression)
 	if err != nil {
 		errorOutput(w, "Expression is not valid", 422, err)
 		return
 	}
-
-
 
 	err = json.NewEncoder(w).Encode(
 		successOutputData {
