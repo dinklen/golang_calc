@@ -137,7 +137,7 @@ func TestCalcHandler(t *testing.T) {
 		{
 			name: "server error: invalid input data",
 			method: "POST",
-			expression: `{"exasd":"1+0"}`,
+			expression: `{"expression?":"1+0"}`,
 			exAnswer: `{"error":"Internal server error: incorrect query"}`,
 			exCode: 500,
 		},
