@@ -9,6 +9,15 @@ import (
 	"io"
 )
 
+var (
+	ErrIncorrectMethod error = errors.New("incorrect method")
+	ErrIncorrectQuery error = errors.New("incorrect query")
+)
+
+type outputData interface {
+	GetData() string
+}
+
 type successOutputData struct {
 	Result string `json:"result"`
 }
@@ -19,6 +28,16 @@ type failureOutputData struct {
 
 type inputData struct {
 	Expression string `json:"expression"`
+}
+
+//successOutputData methods
+func (sod successOutputData) GetData() string {
+	return sod.Result
+}
+
+//failureOutputData methods
+func (fod failureOutputData) GetData() string {
+	return fod.Error
 }
 
 func errorOutput(w http.ResponseWriter, errText string, errCode int, errEvent error) {
@@ -33,7 +52,7 @@ func errorOutput(w http.ResponseWriter, errText string, errCode int, errEvent er
 
 	if err != nil {
 		log.Printf("[ERROR] %v", err)
-		w.WriteHeader(501)
+		w.WriteHeader(500)
 		return
 	}
 }
@@ -47,24 +66,32 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if r.Method != "POST" {
-		errorOutput(w, "Access denied", 405, errors.New("try to use method GET"))
+		errorOutput(w, fmt.Sprintf("Internal server error: %v", ErrIncorrectMethod), 500, ErrIncorrectMethod)
 		return
 	}
 
 	defer r.Body.Close()
 
-	data, err := io.ReadAll(r.Body)
-	log.Printf("[info] %s;%v", string(data), err)
+	data, err := io.ReadAll(r.Body)	
 	if err != nil {
-		errorOutput(w, "Internal server error", 500, err)
+		errorOutput(w, fmt.Sprintf("Internal server error: %v", err), 500, err)
 		return
 	}
 	
-	json.Unmarshal(data, &decryptData)
+	err = json.Unmarshal(data, &decryptData)
+	if err != nil {
+		errorOutput(w, fmt.Sprintf("Internal server error: %v", err), 500, err)
+		return
+	}
+
+	if string(data) != "{\"expression\":\"\"}" && decryptData.Expression == "" {
+		errorOutput(w, fmt.Sprintf("Internal server error: %v", ErrIncorrectQuery), 500, ErrIncorrectQuery)
+		return
+	}
 
 	result, err = Calc(decryptData.Expression)
 	if err != nil {
-		errorOutput(w, "Expression is not valid", 422, err)
+		errorOutput(w, fmt.Sprintf("Expression is not valid: %v", err), 422, err)
 		return
 	}
 
@@ -75,10 +102,10 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		errorOutput(w, "Internal server error", 500, err)
+		errorOutput(w, fmt.Sprintf("Internal server error: %v", err), 500, err)
 		return
 	}
 
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 	log.Printf("[INFO] success")
 }
