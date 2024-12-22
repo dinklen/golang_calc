@@ -41,7 +41,7 @@ To use it, you should follow these steps:
     go run cmd\main.go
     ```
 
-And then with the help of cURL submit requests to him (for _Windows_ use _Git bash_ or _WSL_). For example:
+And then with the help of cURL submit requests to him (for _Windows_ use _Git Bash_ or _WSL_). For example:
 
 ```
 curl --location 'localhost:8080/api/v1/calculate' \
