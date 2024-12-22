@@ -60,7 +60,7 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if r.Method != "POST" {
-		errorOutput(w, fmt.Sprintf("Internal server error: %v", ErrIncorrectMethod), 405, ErrIncorrectMethod)
+		errorOutput(w, fmt.Sprintf("%v", ErrIncorrectMethod), 405, ErrIncorrectMethod)
 		return
 	}
 
