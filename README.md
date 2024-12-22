@@ -31,7 +31,7 @@ To use it, you should follow these steps:
     ```
 4. Start the app
 
-    On **\*Unix**:
+    On **Linux** and **macOS**:
     ```
     go run cmd/main.go
     ```
@@ -41,9 +41,7 @@ To use it, you should follow these steps:
     go run cmd\main.go
     ```
 
-And then with the help of cURL submit requests to him. For example (send it in other terminal/command prompt):
-
-**\*Unix**
+And then with the help of cURL submit requests to him (for _Windows_ use _Git bash_ or _WSL_). For example:
 
 ```
 curl --location 'localhost:8080/api/v1/calculate' \
@@ -51,12 +49,6 @@ curl --location 'localhost:8080/api/v1/calculate' \
 --data '{
   "expression": "*your expression*"
 }'
-```
-
-**Windows**
-
-```
- curl -X POST http://localhost:8080/api/v1/calculate -H "Content-Type: application/json" -d "{\"expression\": \"*your expression*\"}"
 ```
 
 ...result (in **JSON format**):
