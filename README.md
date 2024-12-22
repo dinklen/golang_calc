@@ -22,19 +22,23 @@ To use it, you should follow these steps:
 1. Cloning the repository
 
     ```
-    git clone https://github.com/dinklen08/golang_calc/
+    git clone https://github.com/dinklen/golang_calc.git
     ```
-
-2. Start the app
+2. Go to the directory with it
+   
+    ```
+    cd golang_calc
+    ```
+4. Start the app
 
     On **\*Unix**:
     ```
-    go run golang_calc/cmd/main.go
+    go run cmd/main.go
     ```
 
     On **Windows**:
     ```
-    go run golang_calc\cmd\main.go
+    go run cmd\main.go
     ```
 
 And then with the help of cURL submit requests to him. For example (send it in other terminal/command prompt):
@@ -42,7 +46,7 @@ And then with the help of cURL submit requests to him. For example (send it in o
 **\*Unix**
 
 ```
-curl --location 'localhost/api/v1/calculate' \
+curl --location 'localhost:8080/api/v1/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
   "expression": "*your expression*"
@@ -52,13 +56,13 @@ curl --location 'localhost/api/v1/calculate' \
 **Windows**
 
 ```
- curl -X POST http://localhost:8080/api/v1/calculate -H "Content-Type: application/json" -d "{\"expression\": \"*expression*\"}"
+ curl -X POST http://localhost:8080/api/v1/calculate -H "Content-Type: application/json" -d "{\"expression\": \"*your expression*\"}"
 ```
 
 ...result (in **JSON format**):
 
 ```
-{"result":"6"}
+{"result":"*number*"}
 ```
 
 <h2>Program behavior</h2>
@@ -74,3 +78,8 @@ ___
 | 500 | Status - server error. An error occurred while processing your request. `{"error":"Internal server error: *description*"}` |
 
 ___
+
+<h2>Tests for this app</h2>
+The tests are in the catalog 
+
+`golang_calc` in `pkg`.
