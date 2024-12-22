@@ -207,7 +207,7 @@ func TestCalcHandler(t *testing.T) {
 				stFailAnswer,
 			}
 	
-			if answer.StatusCode != test.exCode || stDatas[index] != stDatas[index+1] {
+			if answer.StatusCode != test.exCode || stDatas[index].GetData() != stDatas[index+1].GetData() {
 				t.Errorf(
 					"%s;\n----- DATA -----\nmethod: %s\nexpected status: %d\nstatus: %d\nexpression: %s\nexpected answer: %s\ngot answer: %s\n----------------",
 					test.name,
