@@ -10,6 +10,6 @@ var (
 	ErrNoNumbers = errors.New("no numbers")
 
 	//server errors
-	ErrIncorrectMethod = errors.New("incorrect method")
+	ErrIncorrectMethod = errors.New("Access denied")
 	ErrIncorrectQuery = errors.New("incorrect query")
 )
