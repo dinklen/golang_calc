@@ -153,7 +153,7 @@ func TestCalcHandler(t *testing.T) {
 			method: "GET",
 			expression: `{"expression":"1.1+90"}`,
 			exAnswer: `{"error":"Internal server error: incorrect method"}`,
-			exCode: 500,
+			exCode: 405,
 		},
 	}
 

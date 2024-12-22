@@ -3,16 +3,7 @@ package golang_calc
 import (
     "strconv"
     "strings"
-    "errors"
     "fmt"
-)
-
-//errors initialization
-var (
-	ErrIncorrectInput = errors.New("incorrect input")
-	ErrDivisionByZero = errors.New("division by zero")
-	ErrEmptyExpression = errors.New("empty expression")
-	ErrNoNumbers = errors.New("no numbers")
 )
 
 func find(item rune, arr []rune) (int, bool) {
@@ -26,7 +17,7 @@ func find(item rune, arr []rune) (int, bool) {
     return -1, false
 }
 
-func operationCalc(expression []string, operations []rune) (string, error) {
+func operationCalc(expression []string, operations []rune) (aString string, aErr error) {
 	var (
 		outputString string = ""
 		result float64 = 0
@@ -36,6 +27,13 @@ func operationCalc(expression []string, operations []rune) (string, error) {
 		err2 error = nil
 		tempIndex int = -1
 	)
+
+	defer func() {
+		if ex := recover(); ex != nil {
+			aString = ""
+			aErr = ErrIncorrectInput
+		}
+	}()
 	
 	for index := 1; index < len(expression)-1; index += 2 {
 		if _, found := find([]rune(expression[index])[0], operations); found {
@@ -153,7 +151,6 @@ func Calc(expression string) (float64, error) {
 	tempExpression = strings.Replace(tempExpression, " ", "", -1)
 
 	//checking...
-
 	if tempExpression == "" {return 0, ErrEmptyExpression}
 
 	for _, num := range []rune{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'} {
