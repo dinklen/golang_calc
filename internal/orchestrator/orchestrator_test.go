@@ -152,8 +152,13 @@ func TestCalcHandler(t *testing.T) {
 			name:       "server error: invalid method",
 			method:     "GET",
 			expression: `{"expression":"1.1+90"}`,
+<<<<<<< HEAD:internal/orchestrator/orchestrator_test.go
 			exAnswer:   `{"error":"Internal server error: incorrect method"}`,
 			exCode:     405,
+=======
+			exAnswer: `{"error":"Access denied"}`,
+			exCode: 405,
+>>>>>>> fa3cc82888f0fb07f4b33a3260f8beb76371fca3:pkg/golang_calc/server_test.go
 		},
 	}
 
@@ -206,8 +211,13 @@ func TestCalcHandler(t *testing.T) {
 				stFailData,
 				stFailAnswer,
 			}
+<<<<<<< HEAD:internal/orchestrator/orchestrator_test.go
 
 			if answer.StatusCode != test.exCode || stDatas[index] != stDatas[index+1] {
+=======
+	
+			if answer.StatusCode != test.exCode || stDatas[index].GetData() != stDatas[index+1].GetData() {
+>>>>>>> fa3cc82888f0fb07f4b33a3260f8beb76371fca3:pkg/golang_calc/server_test.go
 				t.Errorf(
 					"%s;\n----- DATA -----\nmethod: %s\nexpected status: %d\nstatus: %d\nexpression: %s\nexpected answer: %s\ngot answer: %s\n----------------",
 					test.name,
