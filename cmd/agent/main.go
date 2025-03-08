@@ -55,7 +55,9 @@ tempIndex = index-1
 */
 
 func main() {
-	if err := application.App.RunAgent(); err != nil {
+	app := application.New()
+
+	if err := app.RunAgent(); err != nil {
 		log.Fatal("failed to start agent: ", err)
 	}
 }

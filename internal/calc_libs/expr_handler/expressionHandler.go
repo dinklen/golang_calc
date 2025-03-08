@@ -1,30 +1,39 @@
-package expressions
+package expr_handler
 
 import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
-	"golang_calc/internal/application"
+	"golang_calc/internal/calc_libs/expressions"
+	"golang_calc/internal/database"
 
 	"github.com/gorilla/mux"
-	// include db, application
 )
 
 type Tasks struct {
-	Exprs []ExpressionInfo `json:"tasks"`
+	Exprs []*expressions.ExpressionInfo `json:"tasks"`
 }
 
 func CurrentExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	expr, err := application.App.Configuration.Database.DB.UnloadCurrentTask(id)
+	totalID, err := strconv.Atoi(id)
+	if err != nil {
+		log.Fatal("failed to get id")
+		return
+
+		// error_output
+	}
+
+	expr, err := database.DataBase.UnloadCurrentTask(totalID)
 	if err != nil {
 		return // error_output
 	}
 
-	err = json.Encoder(w).NewEncoder(expr)
+	err = json.NewEncoder(w).Encode(expr)
 	if err != nil {
 		log.Printf("[ERROR] failed to encode expression info: %v", err)
 		return
@@ -34,15 +43,15 @@ func CurrentExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func AllAxpressionsHandler(w http.ResponseWriter, r *http.Request) {
-	exprs, err := application.App.Configuration.Database.DB.UnloadAllTasks()
+func AllExpressionsHandler(w http.ResponseWriter, r *http.Request) {
+	exprs, err := database.DataBase.UnloadAllTasks()
 	if err != nil {
 		return // error_output
 	}
 
 	encExprs := &Tasks{Exprs: exprs}
 
-	err = json.Encoder(w).NewEncoder(encExprs)
+	err = json.NewEncoder(w).Encode(encExprs)
 	if err != nil {
 		// error_output
 		log.Printf("[ERROR] failed to encode expressions info: %v", err)

@@ -1,12 +1,13 @@
 package calculator
 
 import (
-	"fmt"
+	"log"
+	"strconv"
 	"strings"
 
-	"golang_calc/internal/application"
 	"golang_calc/internal/calc_libs/errors"
 	"golang_calc/internal/calc_libs/expressions"
+	"golang_calc/internal/database"
 
 	"github.com/google/uuid"
 )
@@ -39,21 +40,31 @@ func operationCalc(expression []string, operations []rune) (aString string, aErr
 		if _, found := find([]rune(expression[index])[0], operations); found {
 			id := uuid.New().ID()
 
-			application.App.Configuration.Database.Insert(
+			arg1, err1 := strconv.ParseFloat(expression[index-1], 64)
+			arg2, err2 := strconv.ParseFloat(expression[index+1], 64)
+
+			if err1 != nil || err2 != nil {
+				log.Printf("[ERROR] failed to convert arg1/arg2 to float64")
+				return "", err2
+			}
+
+			database.DataBase.Insert(
 				expressions.NewExpression(
 					id,
-					expression[index-1],
-					expression[index+1],
+					arg1,
+					arg2,
 					expression[index],
 				),
 
-				'{' == expression[index-1][0],
-				'{' == expression[index+1][0],
+				'{' == rune(expression[index-1][0]),
+				'{' == rune(expression[index+1][0]),
 			)
+
+			strID := strconv.Itoa(int(id))
 
 			expression[index-1] = ""
 			expression[index] = ""
-			expression[index+1] = "{" + fmt.Sprintf("%s", id) + "}"
+			expression[index+1] = "{" + strID + "}"
 		}
 	}
 
@@ -69,9 +80,9 @@ func tempCalculate(expression string) (string, error) {
 		flag bool  = false
 		errE error = nil
 
-		result string
+		//result string
 
-		err error
+		//err error
 	)
 
 	operators := []rune{'*', '/', '+', '-'}
@@ -118,11 +129,13 @@ func tempCalculate(expression string) (string, error) {
 		}
 	}
 
-	if err != nil {
-		return "", errors.ErrIncorrectInput
-	}
+	/*
+		if err != nil {
+			return "", errors.ErrIncorrectInput
+		}
+	*/
 
-	return result, nil
+	return expression, nil
 }
 
 func Parser(expression string) (string, error) {

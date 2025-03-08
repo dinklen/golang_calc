@@ -1,28 +1,40 @@
 package expressions
 
-import "golang_calc/internal/application"
+import "golang_calc/internal/config"
 
 type Expression struct {
-	Id            int    `json:"id"`
-	Arg1          string `json:"arg1"`
-	Arg2          string `json:"arg2"`
-	Operation     string `json:"operation"`
-	OperationTime string `json:"operation_time"`
+	Id            uint32  `json:"id"`
+	Arg1          float64 `json:"arg1"`
+	Arg2          float64 `json:"arg2"`
+	Operation     string  `json:"operation"`
+	OperationTime int     `json:"operation_time"`
 }
 
-func NewExpression(id int, arg1, arg2, operation string) *Expression {
-	var operationTime string
+func NewExpression(id uint32, arg1, arg2 float64, operation string) *Expression {
+	var operationTime int
 
-	switch operation {
-	case "+":
-		operationTime = application.App.Configuration.PlusTime
-	case "-":
-		operationTime = application.App.Configuration.MinusTime
-	case "/":
-		operationTime = application.App.Configuration.DivisionTime
-	case "*":
-		operationTime = application.App.Configuration.MultipTime
+	if operation == "+" {
+		operationTime = config.Conf.PlusTime
+	} else if operation == "-" {
+		operationTime = config.Conf.MinusTime
+	} else if operation == "*" {
+		operationTime = config.Conf.MultipTime
+	} else if operation == "/" {
+		operationTime = config.Conf.DivisionTime
 	}
+
+	/*
+		switch operation {
+		case "+":
+			operationTime = config.Conf.PlusTime
+		case "-":
+			operationTime = config.Conf.MinusTime
+		case "/":
+			operationTime = config.Conf.DivisionTime
+		case "*":
+			operationTime = config.Conf.MultipTime
+		}
+	*/
 
 	return &Expression{
 		Id:            id,
@@ -34,11 +46,11 @@ func NewExpression(id int, arg1, arg2, operation string) *Expression {
 }
 
 type Expressions struct {
-	Exprs []Expression `json:"expressions"`
+	Exprs []*Expression `json:"expressions"`
 }
 
 func NewExpressions() *Expressions {
-	return &Expressions{Exprs: []Expression{}}
+	return &Expressions{Exprs: []*Expression{}}
 }
 
 type ExpressionInfo struct {

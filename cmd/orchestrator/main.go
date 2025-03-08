@@ -7,7 +7,9 @@ import (
 )
 
 func main() {
-	if err := application.App.RunApp(); err != nil {
+	app := application.New()
+
+	if err := app.RunApp(); err != nil {
 		log.Fatal("failed to start app: ", err)
 	}
 }

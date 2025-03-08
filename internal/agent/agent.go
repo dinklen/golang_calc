@@ -6,34 +6,33 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
-	"golang_calc/internal/application"
 	"golang_calc/internal/calc_libs/errors"
 	"golang_calc/internal/calc_libs/expressions"
+	"golang_calc/internal/config"
 )
 
 type safetyMap struct {
-	Map map[string]int `json:"map"`
+	Map map[string]uint32 `json:"map"`
 	mu  sync.RWMutex
 }
 
 func NewSafetyMap() *safetyMap {
 	return &safetyMap{
-		Map: make(map[string]int),
+		Map: make(map[string]uint32),
 	}
 }
 
-func (sm *safetyMap) Add(expr string, id int) {
+func (sm *safetyMap) Add(expr string, id uint32) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
 	sm.Map[expr] = id
 }
 
-func (sm *safetyMap) Get(expr string) int {
+func (sm *safetyMap) Get(expr string) uint32 {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
@@ -57,14 +56,8 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 		// error output
 	}
 
-	cp, err := strconv.Atoi(application.App.Configuration.ComputingPower)         // error_output
-	minusTime, err := strconv.Atoi(application.App.Configuration.MinusTime)       // error_output
-	plusTime, err := strconv.Atoi(application.App.Configuration.PlusTime)         // error_output
-	multipTime, err := strconv.Atoi(application.App.Configuration.MultipTime)     // error_output
-	divisionTime, err := strconv.Atoi(application.App.Configuration.DivisionTime) // error_output
-
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, cp)
+	sem := make(chan struct{}, config.Conf.ComputingPower)
 
 	for exprsCounter := 0; exprsCounter < len(exprs.Exprs); exprsCounter++ {
 		wg.Add(1)
@@ -76,26 +69,26 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 
 			sem <- struct{}{}
 
-			switch exprs.Exprs[index].Operator {
+			switch exprs.Exprs[index].Operation {
 			case "*":
-				time.Sleep(time.Duration(multipTime) * time.Millisecond)
+				time.Sleep(time.Duration(config.Conf.MultipTime) * time.Millisecond)
 				result = exprs.Exprs[index].Arg1 * exprs.Exprs[index].Arg2
 			case "/":
 				if exprs.Exprs[index].Arg2 == 0 {
-					log.Printf("[ERROR] ", errors.ErrDivisionByZero)
+					log.Printf("[ERROR] %v", errors.ErrDivisionByZero)
 					return
 				}
-				time.Sleep(time.Duration(divisionTime) * time.Millisecond)
-				result = exprs.Expressions[index].Arg1 / exprs.Expressions[index].Arg2
+				time.Sleep(time.Duration(config.Conf.DivisionTime) * time.Millisecond)
+				result = exprs.Exprs[index].Arg1 / exprs.Exprs[index].Arg2
 			case "+":
-				time.Sleep(time.Duration(plusTime) * time.Millisecond)
-				result = exprs.Expressions[index].Arg1 + exprs.Expressions[index].Arg2
+				time.Sleep(time.Duration(config.Conf.PlusTime) * time.Millisecond)
+				result = exprs.Exprs[index].Arg1 + exprs.Exprs[index].Arg2
 			case "-":
-				time.Sleep(time.Duration(minusTime) * time.Millisecond)
-				result = exprs.Expressions[index].Arg1 - exprs.Expressions[index].Arg2
+				time.Sleep(time.Duration(config.Conf.MinusTime) * time.Millisecond)
+				result = exprs.Exprs[index].Arg1 - exprs.Exprs[index].Arg2
 			}
 
-			retExprs.Add(fmt.Sprintf("%s", result), exprs.Expressions[index].Id)
+			retExprs.Add(fmt.Sprintf("%s", result), exprs.Exprs[index].Id)
 
 			log.Printf("[INFO] worker %d: success", index)
 

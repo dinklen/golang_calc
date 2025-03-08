@@ -8,7 +8,10 @@ import (
 	"log"
 	"net/http"
 
-	"golang_calc/internal/application"
+	"golang_calc/internal/calc_libs/calculator"
+	"golang_calc/internal/calc_libs/errors"
+	"golang_calc/internal/config"
+	"golang_calc/internal/database"
 )
 
 type idMap struct {
@@ -35,13 +38,12 @@ func errorOutput(w http.ResponseWriter, errText string, errCode int, errEvent er
 func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		decryptData inputData
-		result      float64
 
 		err error
 	)
 
 	if r.Method != "POST" {
-		errorOutput(w, fmt.Sprintf("Incorrect method: %v", ErrIncorrectMethod), 405, ErrIncorrectMethod)
+		errorOutput(w, fmt.Sprintf("Incorrect method: %v", errors.ErrIncorrectMethod), 405, errors.ErrIncorrectMethod)
 		return
 	}
 
@@ -60,11 +62,11 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if string(data) != "{\"expression\":\"\"}" && decryptData.Expression == "" {
-		errorOutput(w, fmt.Sprintf("Incorrect query: %v", ErrIncorrectQuery), 500, ErrIncorrectQuery)
+		errorOutput(w, fmt.Sprintf("Incorrect query: %v", errors.ErrIncorrectQuery), 500, errors.ErrIncorrectQuery)
 		return
 	}
 
-	result, err = Parser(decryptData.Expression)
+	_, err = calculator.Parser(decryptData.Expression)
 	if err != nil {
 		errorOutput(w, fmt.Sprintf("Expression is not valid: %v", err), 422, err)
 		return
@@ -73,24 +75,24 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 
 	for {
-		tasks, err := application.App.Configuration.Database.DB.UnloadTasks()
+		tasks, err := database.DataBase.UnloadTasks()
 		if err != nil {
 			return
 		}
 
-		if len(tasks) == 0 {
+		if len(tasks.Exprs) == 0 {
 			break
 		}
 
-		if application.App.Configuration.Database.DB.UpdateValues() != nil {
+		if database.DataBase.UpdateValues() != nil {
 			return
 		}
 
 		jsonData, err := json.Marshal(tasks)
 
-		req, err := http.NewRequest("POST", "http://localhost:"+application.App.Configuration.AgentPort+"/internal/task", bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest("POST", "http://localhost:"+config.Conf.AgentPort+"/internal/task", bytes.NewBuffer(jsonData))
 		if err != nil {
-			log.Printf("[ERROR] failed to create request: ", err)
+			log.Printf("[ERROR] failed to create request: %v", err)
 			return
 		}
 
@@ -99,7 +101,7 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Printf("[ERROR] failed to send request:", err)
+			log.Printf("[ERROR] failed to send request: %v", err)
 			return
 		}
 
@@ -107,7 +109,7 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Printf("[ERROR] failed to read answer:", err)
+			log.Printf("[ERROR] failed to read answer: %v", err)
 			return
 		}
 
@@ -115,7 +117,7 @@ func CalcHandler(w http.ResponseWriter, r *http.Request) {
 
 		json.Unmarshal(body, &mapId)
 
-		application.App.Configuration.Database.DB.UpdateStatus(&mapId.Map)
+		database.DataBase.UpdateUsedStatus(mapId.Map)
 	}
 
 	err = json.NewEncoder(w).Encode(
