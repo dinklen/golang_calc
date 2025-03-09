@@ -1,8 +1,8 @@
 package calculator
 
 import (
+	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
 	"golang_calc/internal/calc_libs/errors"
@@ -26,7 +26,9 @@ func find(item rune, arr []rune) (int, bool) {
 	return -1, false
 }
 
-func operationCalc(expression []string, operations []rune) (aString string, aErr error) {
+func operationCalc(expression []string, operations []rune) (aString string, lid uint32, aErr error) {
+	var lastID uint32
+
 	var outputString string
 
 	defer func() {
@@ -38,29 +40,21 @@ func operationCalc(expression []string, operations []rune) (aString string, aErr
 
 	for index := 1; index < len(expression)-1; index += 2 {
 		if _, found := find([]rune(expression[index])[0], operations); found {
-			id := uuid.New().ID()
-
-			arg1, err1 := strconv.ParseFloat(expression[index-1], 64)
-			arg2, err2 := strconv.ParseFloat(expression[index+1], 64)
-
-			if err1 != nil || err2 != nil {
-				log.Printf("[ERROR] failed to convert arg1/arg2 to float64")
-				return "", err2
-			}
+			lastID = uuid.New().ID()
 
 			database.DataBase.Insert(
 				expressions.NewExpression(
-					id,
-					arg1,
-					arg2,
+					lastID,
+					expression[index-1],
+					expression[index+1],
 					expression[index],
 				),
 
-				'{' == rune(expression[index-1][0]),
-				'{' == rune(expression[index+1][0]),
+				rune(expression[index-1][0]) != '{',
+				rune(expression[index+1][0]) != '{',
 			)
 
-			strID := strconv.Itoa(int(id))
+			strID := fmt.Sprintf("%v", lastID)
 
 			expression[index-1] = ""
 			expression[index] = ""
@@ -72,17 +66,15 @@ func operationCalc(expression []string, operations []rune) (aString string, aErr
 		outputString += subStr
 	}
 
-	return outputString, nil
+	return outputString, lastID, nil
 }
 
-func tempCalculate(expression string) (string, error) {
+func tempCalculate(expression string) (string, uint32, error) {
 	var (
 		flag bool  = false
 		errE error = nil
 
-		//result string
-
-		//err error
+		lid uint32
 	)
 
 	operators := []rune{'*', '/', '+', '-'}
@@ -104,41 +96,45 @@ func tempCalculate(expression string) (string, error) {
 			} else if _, found := find(r, validSymbols); found {
 				tempString += string(r)
 			} else {
-				return "", errors.ErrIncorrectInput
+				return "", 0, errors.ErrIncorrectInput
 			}
 		}
 
 		tempStrings = append(tempStrings, tempString)
 
 		if flag {
-			expression, errE = operationCalc(tempStrings, []rune{'+', '-'})
+			expression, lid, errE = operationCalc(tempStrings, []rune{'+', '-'})
 
 			if errE != nil {
-				return "", errE
+				return "", 0, errE
 			}
 
 			break
 		} else {
-			expression, errE = operationCalc(tempStrings, []rune{'*', '/'})
+			expression, lid, errE = operationCalc(tempStrings, []rune{'*', '/'})
 
 			if errE != nil {
-				return "", errE
+				return "", 0, errE
 			}
 
 			flag = true
 		}
 	}
 
-	/*
-		if err != nil {
-			return "", errors.ErrIncorrectInput
-		}
-	*/
-
-	return expression, nil
+	return expression, lid, nil
 }
 
-func Parser(expression string) (string, error) {
+func checker(expression string) error {
+	for index := 0; index < len(expression); index++ {
+		if rune(expression[index]) == '{' || rune(expression[index]) == '}' {
+			return errors.ErrIncorrectInput
+		}
+	}
+
+	return nil
+}
+
+func Parser(expression string) (string, uint32, error) {
 	var ( // brackets variables
 		rbCounter int  = 0
 		lbCounter int  = 0
@@ -146,15 +142,21 @@ func Parser(expression string) (string, error) {
 
 		result string
 
+		lid uint32
+
 		err error
 	)
+
+	if err = checker(expression); err != nil {
+		log.Printf("[ERROR] invalid input: %v", err)
+		return "", 0, err
+	}
 
 	tempExpression := expression
 	tempExpression = strings.Replace(tempExpression, " ", "", -1)
 
-	// checking...
 	if tempExpression == "" {
-		return "", errors.ErrEmptyExpression
+		return "", 0, errors.ErrEmptyExpression
 	}
 
 	for _, num := range []rune{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'} {
@@ -165,7 +167,7 @@ func Parser(expression string) (string, error) {
 	}
 
 	if !ok {
-		return "", errors.ErrNoNumbers
+		return "", 0, errors.ErrNoNumbers
 	}
 
 	for _, br := range tempExpression {
@@ -178,7 +180,7 @@ func Parser(expression string) (string, error) {
 	}
 
 	if lbCounter != rbCounter {
-		return "", errors.ErrIncorrectInput
+		return "", 0, errors.ErrIncorrectInput
 	}
 
 start:
@@ -190,9 +192,9 @@ start:
 				counter++
 			} else if []rune(tempExpression)[indexR] == ')' {
 				if counter == 0 {
-					result, err = Parser(tempExpression[indexL+1 : indexR])
+					result, lid, err = Parser(tempExpression[indexL+1 : indexR])
 					if err != nil {
-						return "", err
+						return "", 0, err
 					}
 
 					tempExpression = tempExpression[:indexL] + result + tempExpression[indexR+1:]
@@ -203,11 +205,11 @@ start:
 			}
 		}
 	} else {
-		result, err = tempCalculate(tempExpression)
+		result, lid, err = tempCalculate(tempExpression)
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 	}
 
-	return result, nil
+	return result, lid, nil
 }

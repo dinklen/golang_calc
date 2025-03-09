@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -42,24 +44,31 @@ func (sm *safetyMap) Get(expr string) uint32 {
 func AgentHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
+	w.Header().Set("Content-Type", "application/json")
+
 	exprs := expressions.NewExpressions()
 	retExprs := NewSafetyMap()
-	//make([]endExprs, len=exprs) и в них добавлять в форе
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
-		// error_output
+		log.Printf("[ERROR] failed to read body")
+		w.WriteHeader(500)
+		return
 	}
 
 	err = json.Unmarshal(data, &exprs)
 	if err != nil {
-		// error output
+		log.Printf("[ERROR] failed to unmarshal data")
+		w.WriteHeader(500)
+		return
 	}
 
+	var ec bool = false
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, config.Conf.ComputingPower)
 
 	for exprsCounter := 0; exprsCounter < len(exprs.Exprs); exprsCounter++ {
+
 		wg.Add(1)
 
 		go func(index int, wg *sync.WaitGroup, sem chan struct{}) {
@@ -69,28 +78,43 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 
 			sem <- struct{}{}
 
+			arg1, err1 := strconv.ParseFloat(exprs.Exprs[index].Arg1, 64)
+			arg2, err2 := strconv.ParseFloat(exprs.Exprs[index].Arg2, 64)
+
+			if err1 != nil || err2 != nil {
+				log.Printf("[ERROR] worker %d: parsing error (err1: %v; err2: %v)", index+1, err1, err2)
+				ec = true
+				retExprs.Add(fmt.Sprintf("%v", math.MaxFloat64), exprs.Exprs[index].Id)
+				<-sem
+				return
+			}
+
 			switch exprs.Exprs[index].Operation {
 			case "*":
 				time.Sleep(time.Duration(config.Conf.MultipTime) * time.Millisecond)
-				result = exprs.Exprs[index].Arg1 * exprs.Exprs[index].Arg2
+				result = arg1 * arg2
 			case "/":
-				if exprs.Exprs[index].Arg2 == 0 {
-					log.Printf("[ERROR] %v", errors.ErrDivisionByZero)
+				if arg2 == 0 {
+					log.Printf("[ERROR] worker %d: %v", index+1, errors.ErrDivisionByZero)
+					ec = true
+					retExprs.Add(fmt.Sprintf("%v", math.MaxFloat64), exprs.Exprs[index].Id)
+					<-sem
 					return
 				}
+
 				time.Sleep(time.Duration(config.Conf.DivisionTime) * time.Millisecond)
-				result = exprs.Exprs[index].Arg1 / exprs.Exprs[index].Arg2
+				result = arg1 / arg2
 			case "+":
 				time.Sleep(time.Duration(config.Conf.PlusTime) * time.Millisecond)
-				result = exprs.Exprs[index].Arg1 + exprs.Exprs[index].Arg2
+				result = arg1 + arg2
 			case "-":
 				time.Sleep(time.Duration(config.Conf.MinusTime) * time.Millisecond)
-				result = exprs.Exprs[index].Arg1 - exprs.Exprs[index].Arg2
+				result = arg1 - arg2
 			}
 
-			retExprs.Add(fmt.Sprintf("%s", result), exprs.Exprs[index].Id)
+			retExprs.Add(fmt.Sprintf("%v", result), exprs.Exprs[index].Id)
 
-			log.Printf("[INFO] worker %d: success", index)
+			log.Printf("[INFO] worker %d: success", index+1)
 
 			<-sem
 		}(exprsCounter, &wg, sem)
@@ -98,13 +122,27 @@ func AgentHandler(w http.ResponseWriter, r *http.Request) {
 
 	wg.Wait()
 
-	err = json.NewEncoder(w).Encode(retExprs.Map)
+	if ec {
+		w.WriteHeader(422)
+		return
+	}
+
+	retData, err := json.Marshal(retExprs)
+	if err != nil {
+		log.Printf("[ERROR] failed to convert data to json: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	_, err = w.Write(retData)
 
 	if err != nil {
 		log.Printf("[ERROR] failed to send message to orchestrator: %v", err)
+		w.WriteHeader(500)
+		return
 	}
 
 	log.Printf("[INFO] subcalc success")
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(200)
 }

@@ -20,10 +20,10 @@ type Config struct {
 	ComputingPower int
 }
 
-func getEnv(arg string) int {
+func getEnv(arg, value string) int {
 	envVar := os.Getenv(arg)
 	if envVar == "" {
-		envVar = "100"
+		envVar = value
 	}
 
 	retVar, err := strconv.Atoi(envVar)
@@ -42,12 +42,12 @@ func ConfigFill() *Config {
 	config.AppPort = os.Getenv("APP_PORT")
 	config.AgentPort = os.Getenv("AGENT_PORT")
 
-	config.PlusTime = getEnv("TIME_ADDITION_MS")
-	config.MinusTime = getEnv("TIME_SUBSTRACTION_MS")
-	config.MultipTime = getEnv("TIME_MULTIPLICATION_MS")
-	config.DivisionTime = getEnv("TIME_DIVISION_MS")
+	config.PlusTime = getEnv("TIME_ADDITION_MS", "100")
+	config.MinusTime = getEnv("TIME_SUBSTRACTION_MS", "100")
+	config.MultipTime = getEnv("TIME_MULTIPLICATIONS_MS", "100")
+	config.DivisionTime = getEnv("TIME_DIVISIONS_MS", "100")
 
-	config.ComputingPower = getEnv("COMPUTING_POWER")
+	config.ComputingPower = getEnv("COMPUTING_POWER", "5")
 	if config.AppPort == "" {
 		config.AppPort = "8080"
 	}

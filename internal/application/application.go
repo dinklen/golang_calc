@@ -36,13 +36,18 @@ func New() *Application {
 func (app *Application) RunApp() error {
 	defer database.DataBase.DB.Close()
 
+	err := database.DataBase.Clean()
+	if err != nil {
+		panic(err)
+	}
+
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/calculate", orchestrator.CalcHandler).Methods("POST", "GET")
-	router.HandleFunc("/api/v1/expressions", expr_handler.CurrentExpressionsHandler).Methods("GET")
-	router.HandleFunc("/api/v1/expressions/{id}", expr_handler.AllExpressionsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/calculate", orchestrator.CalcHandler).Methods("POST")
+	router.HandleFunc("/api/v1/expressions", expr_handler.AllExpressionsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/expressions/{id}", expr_handler.CurrentExpressionsHandler).Methods("GET")
 
 	log.Printf("[INFO] app:listening... (port=%s)", app.Configuration.AppPort)
-	err := http.ListenAndServe(":"+app.Configuration.AppPort, router)
+	err = http.ListenAndServe(":"+app.Configuration.AppPort, router)
 
 	return err
 }
@@ -50,10 +55,10 @@ func (app *Application) RunApp() error {
 func (app *Application) RunAgent() error {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/api/v1/internal/task", agent.AgentHandler).Methods("GET", "POST")
+	router.HandleFunc("/internal/task", agent.AgentHandler).Methods("POST")
 
 	log.Printf("[INFO] agent:listening... (port=%s)", app.Configuration.AgentPort)
-	err := http.ListenAndServe(":"+app.Configuration.AgentPort, router) // cange port
+	err := http.ListenAndServe(":"+app.Configuration.AgentPort, router)
 
 	return err
 }

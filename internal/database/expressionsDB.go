@@ -3,7 +3,9 @@ package database
 import (
 	"database/sql"
 	"log"
+	"math"
 
+	"golang_calc/internal/calc_libs/errors"
 	"golang_calc/internal/calc_libs/expressions"
 
 	_ "github.com/lib/pq"
@@ -18,7 +20,7 @@ type Database struct {
 func NewDatabase() (*Database, error) {
 	db, err := sql.Open("postgres", "user=postgres password=db78903 dbname=subexpressions sslmode=disable")
 	if err != nil {
-		log.Fatal("failed to create database object: ", err)
+		log.Fatal("[FATAL] failed to create database object: ", err)
 		return nil, err
 	}
 
@@ -53,38 +55,16 @@ func (db *Database) Insert(expr *expressions.Expression, enabled1, enabled2 bool
 	return nil
 }
 
-/*
-func (db *Database) GetResult(id string) (float64, error) {
-	var result float64
-
-	if err := db.DB.Ping(); err != nil {
-		log.Fatal("[FATAL] failed to ping database: ", err)
-		return err
-	}
-
-	row := db.DB.QueryRow(`SELECT result FROM calc_exprs WHERE id = \$1`, id)
-	err = row.Scan(&result)
-
-	if err != nil {
-		log.Printf("[ERROR] failed get data from database: ", err)
-		return err
-	}
-
-	log.Printf("[INFO] result got")
-	return result, nil
-}
-*/
-
 func (db *Database) UnloadTasks() (*expressions.Expressions, error) {
 	tasks := []*expressions.Expression{}
 
 	if err := db.DB.Ping(); err != nil {
-		log.Fatal("failed to ping database: ", err)
+		log.Fatal("[FATAL] failed to ping database: ", err)
 		return nil, err
 	}
 
 	rows, err := db.DB.Query(`
-		SELECT (id, num1, operator, num2)
+		SELECT id, num1, operator, num2
 		FROM calc_exprs
 		WHERE enb1 = TRUE AND enb2 = TRUE AND used = FALSE;
 	`)
@@ -96,12 +76,18 @@ func (db *Database) UnloadTasks() (*expressions.Expressions, error) {
 
 	var (
 		id       uint32
-		num1     float64
-		num2     float64
+		num1     string
+		num2     string
 		operator string
 	)
 
 	for rows.Next() {
+		err := rows.Scan(&id, &num1, &operator, &num2)
+		if err != nil {
+			log.Printf("[ERROR] failed to scan data from database: %v", err)
+			return nil, err
+		}
+
 		tasks = append(tasks, expressions.NewExpression(
 			id,
 			num1,
@@ -119,72 +105,58 @@ func (db *Database) UpdateValues() error {
 		return err
 	}
 
-	// select items where unk_nums >= 1 and write logic
-	rows, err := db.DB.Query(`
-		SELECT (id, num1, num2)
-		FROM calc_exprs
-		WHERE (enb1 = FALSE OR enb2 = FALSE) AND used = FALSE;
-	`)
+	rows, err := db.DB.Query(`SELECT id, num1, num2 FROM calc_exprs WHERE (enb1 = FALSE OR enb2 = FALSE) AND used = FALSE`)
 
 	if err != nil {
-		log.Fatal("failed to update database: ", err)
+		log.Fatal("[FATAL] failed to update database: ", err)
 		return err
 	}
 
 	args := make([]string, 2)
-	arg := ""
 
-	var id int
+	var id uint32
 
 	for rows.Next() {
-		rows.Scan(&id, &args[0], &args[1]) // init id
+		rows.Scan(&id, &args[0], &args[1])
 
-		// parse expression id (for example: "{432}" => "432")
 		for index := 0; index < 2; index++ {
-			if []rune(args[index])[0] == '{' {
-				[]rune(args[index])[len(args[index])-1] = 0
-				[]rune(args[index])[0] = 0
+			if rune(args[index][0]) == '{' {
+				args[index] = args[index][1 : len(args[index])-1]
+			} else {
+				args[index] = ""
 			}
-
-			args[index] = arg
-			arg = ""
 		}
 
 		if args[0] != "" {
 			_, err = db.DB.Exec(
-				`
-				UPDATE calc_exprs
-				SET num1 = (
-					SELECT result FROM calc_exprs WHERE id = $1
-				) WHERE id = $2
-				`,
+				`UPDATE calc_exprs SET num1 = (SELECT result FROM calc_exprs WHERE id = $1), enb1 = TRUE WHERE id = $2`,
 				args[0],
 				id,
 			)
+
+			if err != nil {
+				log.Fatal("[FATAL] failed to update database: ", err)
+				return err
+			}
 		}
 
 		if args[1] != "" {
 			_, err = db.DB.Exec(
-				`
-				UPDATE calc_exprs
-				SET num2 = (
-					SELECT result FROM calc_exprs WHERE id = $1
-				) WHERE id = $2
-				`,
+				`UPDATE calc_exprs SET num2 = (SELECT result FROM calc_exprs WHERE id = $1), enb2 = TRUE WHERE id = $2`,
 				args[1],
 				id,
 			)
-		}
 
-		if err != nil {
-			log.Fatal("[FATAL] failed to update database: ", err)
-			return err
+			if err != nil {
+				log.Fatal("[FATAL] failed to update database: ", err)
+				return err
+			}
 		}
 	}
 
-	log.Printf("[INFO] update success")
+	log.Printf("[INFO] update success %v", id)
 	return nil
-} // update all values status {enable} from database
+}
 
 func (db *Database) UnloadAllTasks() ([]*expressions.ExpressionInfo, error) {
 	if err := db.DB.Ping(); err != nil {
@@ -194,14 +166,14 @@ func (db *Database) UnloadAllTasks() ([]*expressions.ExpressionInfo, error) {
 
 	retExprs := []*expressions.ExpressionInfo{}
 
-	rows, err := db.DB.Query("SELECT (id, result, used, enb1, enb2) FROM calc_exprs")
+	rows, err := db.DB.Query("SELECT id, result, used, enb1, enb2 FROM calc_exprs")
 	if err != nil {
 		log.Printf("[ERROR] failed to unload all tasks from database: %v", err)
 		return nil, err
 	}
 
 	var (
-		id  int
+		id  uint32
 		res float64
 
 		enb1       bool
@@ -214,7 +186,9 @@ func (db *Database) UnloadAllTasks() ([]*expressions.ExpressionInfo, error) {
 	for rows.Next() {
 		rows.Scan(&id, &res, &usedStatus, &enb1, &enb2)
 
-		if !enb1 || !enb2 {
+		if res == math.MaxFloat64 {
+			totalStatus = "error"
+		} else if !enb1 || !enb2 {
 			totalStatus = "waiting"
 		} else if !usedStatus {
 			totalStatus = "calculating"
@@ -227,7 +201,7 @@ func (db *Database) UnloadAllTasks() ([]*expressions.ExpressionInfo, error) {
 			&expressions.ExpressionInfo{
 				Id:     id,
 				Status: totalStatus,
-				Result: res, // ?? а если его ещё нет?
+				Result: res,
 			},
 		)
 	}
@@ -236,7 +210,27 @@ func (db *Database) UnloadAllTasks() ([]*expressions.ExpressionInfo, error) {
 	return retExprs, nil
 }
 
-func (db *Database) UpdateUsedStatus(ids map[string]int) error {
+func (db *Database) InsertError(id uint32) error {
+	if err := db.DB.Ping(); err != nil {
+		log.Fatal("[FATAL] failed to ping database: ", err)
+		return err
+	}
+
+	_, err := db.DB.Exec(
+		`INSERT INTO calc_exprs (id, result) VALUES ($1, $2)`,
+		id,
+		math.MaxFloat64,
+	)
+
+	if err != nil {
+		log.Printf("[ERROR] failed to insert error expr status")
+		return err
+	}
+
+	return nil
+}
+
+func (db *Database) UpdateUsedStatus(ids map[float64]uint32) error {
 	if err := db.DB.Ping(); err != nil {
 		log.Fatal("[FATAL] failed to ping database: ", err)
 		return err
@@ -244,12 +238,7 @@ func (db *Database) UpdateUsedStatus(ids map[string]int) error {
 
 	for key, value := range ids {
 		_, err := db.DB.Exec(
-			`
-			UPDATE calc_exprs
-			SET result = $1,
-				used = TRUE
-			WHERE id = $2;
-			`,
+			`UPDATE calc_exprs SET result = $1, used = TRUE WHERE id = $2`,
 			key,
 			value,
 		)
@@ -264,16 +253,16 @@ func (db *Database) UpdateUsedStatus(ids map[string]int) error {
 	return nil
 }
 
-func (db *Database) UnloadCurrentTask(id int) (*expressions.ExpressionInfo, error) {
+func (db *Database) UnloadCurrentTask(id uint32) (*expressions.ExpressionInfo, error) {
 	if err := db.DB.Ping(); err != nil {
 		log.Fatal("[FATAL] failed to ping database: ", err)
 		return nil, err
 	}
 
-	row := db.DB.QueryRow(`SELECT (id, result, used, enb1, enb2) FROM calc_exprs WHERE id = $1`, id)
+	row := db.DB.QueryRow(`SELECT id, result, used, enb1, enb2 FROM calc_exprs WHERE id = $1`, id)
 
 	var (
-		id_s int
+		id_s uint32
 		res  float64
 
 		enb1       bool
@@ -285,7 +274,13 @@ func (db *Database) UnloadCurrentTask(id int) (*expressions.ExpressionInfo, erro
 
 	row.Scan(&id_s, &res, &usedStatus, &enb1, &enb2)
 
-	if !enb1 || !enb2 {
+	if id_s == 0 {
+		return nil, errors.ErrIncorrectQuery
+	}
+
+	if res == math.MaxFloat64 {
+		totalStatus = "error"
+	} else if !enb1 || !enb2 {
 		totalStatus = "waiting"
 	} else if !usedStatus {
 		totalStatus = "calculating"
@@ -301,41 +296,17 @@ func (db *Database) UnloadCurrentTask(id int) (*expressions.ExpressionInfo, erro
 	}, nil
 }
 
-/*
-func connect() error {
-	connectData := "user=postgres dbname=subexpressions sslmode=disable"
-	db, err := sql.Open("postgres", connectData)
-	if err != nil {
-		log.Fatal("connection to database failed: ", err)
+func (db *Database) Clean() error {
+	if err := db.DB.Ping(); err != nil {
+		log.Fatal("[FATAL] failed to ping database: ", err)
 		return err
 	}
 
-	defer db.Close()
-
-	err = db.Ping()
+	_, err := db.DB.Exec(`TRUNCATE TABLE calc_exprs`)
 	if err != nil {
-		log.Fatal("database ping failed: ", err)
+		log.Printf("[ERROR] failed to clean table: %v", err)
 		return err
 	}
 
-	log.Info("success to connect to database")
+	return nil
 }
-
-func Run(command string) error { // so dangerous!!!
-	err := connect()
-	if err != nil {
-		return err
-	}
-}
-
-connectionData := "user=postgres dbname=subexpressions sslmode=disable"
-	db, err := sql.Open("postgres", connectionData)
-	if err != nil {
-		log.Fatal("failed to connect to database: ", err)
-		return err
-	}
-
-	defer db.Close()
-*/
-
-// load database from file?

@@ -3,6 +3,7 @@ package expr_handler
 import (
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -13,24 +14,29 @@ import (
 )
 
 type Tasks struct {
-	Exprs []*expressions.ExpressionInfo `json:"tasks"`
+	Exprs []*expressions.ExpressionInfo `json:"expressions"`
 }
 
 func CurrentExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	totalID, err := strconv.Atoi(id)
+	totalID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		log.Fatal("failed to get id")
+		log.Fatal("[FATAL] failed to get id")
+		w.WriteHeader(422)
 		return
-
-		// error_output
 	}
 
-	expr, err := database.DataBase.UnloadCurrentTask(totalID)
+	expr, err := database.DataBase.UnloadCurrentTask(uint32(totalID))
 	if err != nil {
-		return // error_output
+		w.Write([]byte(`{"error":"invalid id"}`))
+		w.WriteHeader(404)
+		return
+	}
+
+	if expr.Result == math.MaxFloat64 {
+		expr.Status = "error"
 	}
 
 	err = json.NewEncoder(w).Encode(expr)
@@ -46,15 +52,19 @@ func CurrentExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 func AllExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	exprs, err := database.DataBase.UnloadAllTasks()
 	if err != nil {
-		return // error_output
+		w.WriteHeader(500)
+		return
 	}
 
 	encExprs := &Tasks{Exprs: exprs}
+	if len(encExprs.Exprs) == 1 && encExprs.Exprs[0].Result == math.MaxFloat64 {
+		encExprs.Exprs[0].Status = "error"
+	}
 
 	err = json.NewEncoder(w).Encode(encExprs)
 	if err != nil {
-		// error_output
 		log.Printf("[ERROR] failed to encode expressions info: %v", err)
+		w.WriteHeader(500)
 		return
 	}
 
