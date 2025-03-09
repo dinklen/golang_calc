@@ -38,7 +38,7 @@
 9. Записывает результат и отсылает всё в `api/v1/expressions`, а пользователю - `id`.
 
 
-![Архитектура](https://github.com/dinklen/golang_calc/architecture.tiff)
+![Архитектура](https://github.com/dinklen/golang_calc/blob/main/architecture.png)
 ---
 
 ## Приступая к работе
