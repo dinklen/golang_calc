@@ -75,7 +75,7 @@ CREATE DATABASE subexpressions;
 \q
 ```
 
-Снова терминал.
+Команда для восстановления БД из готового образа *(убедитесь, что вы находитесь в подкаталоге database каталога проекта)*
 ```bash
 pg_restore -U postgres -d subexpressions -v "subexpressions.dump"
 ```
