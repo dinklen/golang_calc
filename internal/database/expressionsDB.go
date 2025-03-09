@@ -117,6 +117,7 @@ func (db *Database) UpdateValues() error {
 	var id uint32
 
 	for rows.Next() {
+		log.Printf("scaning...")
 		rows.Scan(&id, &args[0], &args[1])
 
 		for index := 0; index < 2; index++ {
@@ -129,7 +130,17 @@ func (db *Database) UpdateValues() error {
 
 		if args[0] != "" {
 			_, err = db.DB.Exec(
-				`UPDATE calc_exprs SET num1 = (SELECT result FROM calc_exprs WHERE id = $1), enb1 = TRUE WHERE id = $2`,
+				`
+				UPDATE calc_exprs
+				SET num1 = CASE
+				WHEN (SELECT result FROM calc_exprs WHERE id = $1) IS NOT NULL THEN
+				(SELECT result::TEXT FROM calc_exprs WHERE id = $1)
+				ELSE ('{' || $1 || '}')
+				END,
+				enb1 = (SELECT result FROM calc_exprs WHERE id = $1) IS NOT NULL
+				WHERE id = $2
+				`,
+
 				args[0],
 				id,
 			)
@@ -142,7 +153,17 @@ func (db *Database) UpdateValues() error {
 
 		if args[1] != "" {
 			_, err = db.DB.Exec(
-				`UPDATE calc_exprs SET num2 = (SELECT result FROM calc_exprs WHERE id = $1), enb2 = TRUE WHERE id = $2`,
+				`
+				UPDATE calc_exprs
+				SET num2 = CASE
+				WHEN (SELECT result FROM calc_exprs WHERE id = $1) IS NOT NULL THEN
+				(SELECT result::TEXT FROM calc_exprs WHERE id = $1)
+				ELSE ('{' || $1 || '}')
+				END,
+				enb2 = (SELECT result FROM calc_exprs WHERE id = $1) IS NOT NULL
+				WHERE id = $2
+				`,
+
 				args[1],
 				id,
 			)
