@@ -26,6 +26,21 @@ func find(item rune, arr []rune) (int, bool) {
 	return -1, false
 }
 
+// repair prototype (db: failed to convert num2/num1)
+/*
+func removeItems(inputSlice []stirng, inputItem string) []string {
+        var outputSlice []string{}
+
+	for _, item := range inputSlice {
+                if item != inputItem {
+		        outputSlice = append(outputSlice, item)
+		}
+        }
+
+        return outputSlice
+}
+*/
+
 func operationCalc(expression []string, operations []rune) (aString string, lid uint32, aErr error) {
 	var lastID uint32
 
