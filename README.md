@@ -80,6 +80,12 @@ CREATE DATABASE subexpressions;
 pg_restore -U postgres -d subexpressions -v "subexpressions.dump"
 ```
 
+*Необходимо также сменить пароль пользователя **postgres** на **db78903**. Без этого доступ к базе данных будет отклонён!*
+
+```sql
+ALTER USER postgres WITH PASSWORD 'db78903';
+```
+
 > При возникновении проблем с установкой или дополнительных вопросов - пишите в ишью.
 
 ## Запуск
